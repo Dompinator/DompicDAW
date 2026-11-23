@@ -176,13 +176,72 @@ function arrangement() {
         m.style.height = (5 + n.pitch % 12) + "px";
         notes.append(m);
       });
-      el.append(title, notes);
-      el.onclick = e => { e.stopPropagation(); selectClip(t.id, c.id); };
+      // Resize handle on the right edge
+      const handle = document.createElement("div");
+      handle.className = "clip-resize";
+      handle.title = "Drag to resize length";
+      el.append(title, notes, handle);
+
+      // Click to select
+      el.onclick = e => {
+        if (e.target.classList.contains("clip-resize")) return;
+        e.stopPropagation();
+        selectClip(t.id, c.id);
+      };
       el.ondblclick = e => {
         e.stopPropagation();
         const s = prompt("Clip name", c.name);
         if (s?.trim()) { c.name = s.trim(); arrangement(); header(); }
       };
+
+      // Drag to move the whole clip
+      let dragStartX, origStart, isDragging = false;
+      el.onpointerdown = e => {
+        if (e.target.classList.contains("clip-resize") || e.button !== 0) return;
+        e.stopPropagation();
+        isDragging = true;
+        dragStartX = e.clientX;
+        origStart = c.start;
+        el.setPointerCapture(e.pointerId);
+        el.classList.add("dragging");
+      };
+      el.onpointermove = e => {
+        if (!isDragging) return;
+        const dx = e.clientX - dragStartX;
+        const dBeats = Math.round(dx / 30 * 4) / 4; // snap to 1/4 beat
+        c.start = Math.max(0, Math.min(song.bars * 4 - c.length, origStart + dBeats));
+        el.style.left = (c.start * 30) + "px";
+      };
+      el.onpointerup = e => {
+        if (!isDragging) return;
+        isDragging = false;
+        el.classList.remove("dragging");
+        arrangement(); // refresh to snap cleanly
+      };
+
+      // Resize handle drag
+      handle.onpointerdown = e => {
+        e.stopPropagation();
+        e.preventDefault();
+        const startX = e.clientX;
+        const origLen = c.length;
+        handle.setPointerCapture(e.pointerId);
+        const onMove = ev => {
+          const dx = ev.clientX - startX;
+          const dBeats = Math.round(dx / 30 * 4) / 4;
+          c.length = Math.max(0.25, Math.min(song.bars * 4 - c.start, origLen + dBeats));
+          el.style.width = Math.max(22, c.length * 30 - 3) + "px";
+        };
+        const onUp = () => {
+          handle.releasePointerCapture(e.pointerId);
+          handle.onpointermove = null;
+          handle.onpointerup = null;
+          arrangement();
+        };
+        handle.onpointermove = onMove;
+        handle.onpointerup = onUp;
+      };
+
       grid.append(el);
     }
     grid.onclick = e => {
@@ -198,7 +257,53 @@ function arrangement() {
     lane.append(name, grid);
     root.append(lane);
   }
+
+  // Draggable timeline playhead
+  let ph = document.getElementById("arr-playhead");
+  if (!ph) {
+    ph = document.createElement("div");
+    ph.id = "arr-playhead";
+    ph.className = "arr-playhead";
+    ph.innerHTML = '<div class="arr-playhead-head"></div>';
+    root.append(ph);
+  }
+  updatePlayhead();
 }
+
+function updatePlayhead() {
+  const ph = document.getElementById("arr-playhead");
+  if (!ph) return;
+  const beat = engine.playing || engine.pausedBeat > 0 ? engine.currentBeat() : 0;
+  ph.style.left = (180 + beat * 30) + "px";
+}
+
+// Allow dragging the playhead on the ruler or arrangement area
+document.addEventListener("pointerdown", e => {
+  if (!e.target.closest(".arr-ruler, .arr-lane-grid, .arr-playhead")) return;
+  if (e.target.closest(".midi-clip")) return;
+  const grid = e.target.closest(".arr-lane-grid") || document.querySelector(".arr-lane-grid");
+  if (!grid) return;
+  const rect = grid.getBoundingClientRect();
+  const setFromX = (clientX) => {
+    const x = clientX - rect.left;
+    const beat = Math.max(0, Math.min(song.bars * 4, Math.round(x / 30 * 4) / 4));
+    engine.pausedBeat = beat;
+    if (engine.playing) {
+      engine.startBeat = beat;
+      engine.startTime = engine.ctx ? engine.ctx.currentTime : 0;
+    }
+    updatePlayhead();
+    $("position").textContent = (Math.floor(beat / 4) + 1) + "." + (Math.floor(beat % 4) + 1);
+  };
+  setFromX(e.clientX);
+  const onMove = ev => setFromX(ev.clientX);
+  const onUp = () => {
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
+  };
+  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp);
+});
 
 $("btn-add-track").onclick = addTrack;
 $("instrument-select").onchange = () => {
@@ -301,6 +406,7 @@ function frame() {
     const b = engine.currentBeat();
     $("position").textContent = (Math.floor(b / 4) + 1) + "." + (Math.floor(b % 4) + 1);
     roll.draw();
+    updatePlayhead();
   }
   requestAnimationFrame(frame);
 }
