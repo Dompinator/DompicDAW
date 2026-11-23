@@ -30,7 +30,12 @@ function view(v) {
   document.querySelectorAll(".view-tab").forEach(b => b.classList.toggle("active", b.dataset.view === v));
   document.querySelectorAll(".view-pane").forEach(p => p.classList.toggle("active", p.id === v + "-view"));
   if (v === "midi") {
-    setTimeout(() => roll.resize(), 50); // allow transition
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        roll.resize();
+        roll.draw();
+      });
+    });
   }
 }
 document.querySelectorAll(".view-tab").forEach(b => b.onclick = () => view(b.dataset.view));
@@ -231,17 +236,30 @@ function pitch(k) {
 function piano() {
   const host = $("piano-keys");
   host.innerHTML = "";
-  const base = 12 * (+$("keyboard-octave").value + 1);
+  const octave = +$("keyboard-octave").value;
+  const base = 12 * (octave + 1); // C of selected octave (e.g. 4 -> 60 = C4)
   const white = [0, 2, 4, 5, 7, 9, 11];
   const black = [1, 3, 6, 8, 10];
   function key(i, isBlack) {
+    const pitch = base + i;
     const b = document.createElement("button");
     b.className = "piano-key" + (isBlack ? " black" : "");
-    b.textContent = noteName(base + i);
-    if (isBlack) b.style.left = ((white.filter(n => n < i).length + .68) / 7 * 100) + "%";
+    b.textContent = noteName(pitch);
+    b.title = noteName(pitch) + " (MIDI " + pitch + ")";
+    if (isBlack) {
+      const whitesBefore = white.filter(n => n < i).length;
+      b.style.left = ((whitesBefore + 0.68) / 7 * 100) + "%";
+    }
     b.onpointerdown = e => {
       e.preventDefault();
-      if (track()) engine.preview(track(), base + i, .65);
+      const t = track();
+      if (t) {
+        engine.preview(t, pitch, 0.65);
+      } else {
+        // fallback preview if no track selected
+        engine.ensureContext();
+        engine.preview({id:"preview", instrument:"piano", volume:0.8, mute:false, solo:false}, pitch, 0.65);
+      }
       b.classList.add("active");
     };
     b.onpointerup = b.onpointerleave = () => b.classList.remove("active");
@@ -350,3 +368,6 @@ header();
 arrangement();
 if (!storage.isConfigured()) status("Supabase not connected yet (see README)");
 requestAnimationFrame(frame);
+
+// Ensure MIDI roll is ready
+setTimeout(() => { if (document.getElementById("midi-view").classList.contains("active")) roll.resize(); }, 100);
