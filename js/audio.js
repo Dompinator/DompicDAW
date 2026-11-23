@@ -21,7 +21,7 @@ export class Engine{
   }
   playNote(track,pitch,when,durationS){
     this.ensureContext();this.syncMixer();
-    if(track.instrument==="drums"){this.playDrum(track,pitch,when);return;}
+    if(track.instrument==="drums"){const map=[36,42,38,46,42,38,42,38,46,42,38,42];this.playDrum(track,map[pitch%12],when);return;}
     const ctx=this.ctx,out=this.trackGain(track),f=midiToFreq(pitch),end=when+Math.max(0.05,durationS);
     const voice=ctx.createGain();voice.connect(out);
     const osc=ctx.createOscillator(),filter=ctx.createBiquadFilter(),amp=ctx.createGain();
