@@ -28,14 +28,13 @@ function status(s, err = false) {
 
 function view(v) {
   document.querySelectorAll(".view-tab").forEach(b => b.classList.toggle("active", b.dataset.view === v));
-  document.querySelectorAll(".view-pane").forEach(p => p.classList.toggle("active", p.id === v + "-view"));
+  document.querySelectorAll(".view-pane").forEach(p => {
+    const on = p.id === v + "-view";
+    p.classList.toggle("active", on);
+    p.style.display = on ? "flex" : "none";
+  });
   if (v === "midi") {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        roll.resize();
-        roll.draw();
-      });
-    });
+    setTimeout(() => { roll.resize(); roll.draw(); }, 30);
   }
 }
 document.querySelectorAll(".view-tab").forEach(b => b.onclick = () => view(b.dataset.view));
