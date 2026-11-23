@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DompicDAW</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">DompicDAW</div>
+
+    <div class="transport">
+      <button id="btn-play" title="Play / Pause (Space)">▶</button>
+      <button id="btn-stop" title="Stop">■</button>
+      <label class="bpm">BPM <input id="bpm" type="number" min="40" max="240" value="120"></label>
+      <label class="bpm">Bars <input id="bars" type="number" min="1" max="64" value="4"></label>
+      <span id="position" class="position">1.1</span>
+    </div>
+
+    <div class="song-controls">
+      <input id="song-title" type="text" value="Untitled song" aria-label="Song title">
+      <button id="btn-save">Save</button>
+      <button id="btn-open">Open…</button>
+      <span id="status" class="status"></span>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section class="tracklist" id="tracklist">
+      <div class="tracklist-head">
+        <span>Tracks</span>
+        <button id="btn-add-track" class="add-track" title="Add instrument track">+</button>
+      </div>
+      <div id="tracks"></div>
+    </section>
+
+    <section class="editor" id="editor">
+      <div class="editor-head" id="editor-head">Select a track, or press “+” to add a piano.</div>
+      <div class="roll-wrap" id="roll-wrap">
+        <canvas id="roll"></canvas>
+      </div>
+    </section>
+  </main>
+
+  <!-- Song picker -->
+  <dialog id="dlg-open">
+    <h2>Open song</h2>
+    <ul id="song-list" class="song-list"></ul>
+    <form method="dialog"><button>Close</button></form>
+  </dialog>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
